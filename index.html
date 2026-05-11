@@ -4,218 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DW 预约系统</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑, sans-serif;}
-        body{background:#f5f7fa;padding:15px;}
-        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-        h1{color:#333;font-size:22px;}
-        .admin-btn{padding:8px 16px;background:#2d8cf0;color:#fff;border:none;border-radius:6px;cursor:pointer;}
-        .calendar-wrap{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;}
-        .day-card{background:#fff;border-radius:8px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
-        .day-title{font-weight:bold;margin-bottom:8px;color:#2d8cf0;font-size:14px;}
-        .time-item{padding:6px;margin:4px 0;border-radius:4px;border:1px solid #eee;cursor:pointer;font-size:13px;}
-        .time-item.occupied{background:#eee;color:#999;cursor:not-allowed;}
-        .mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;}
-        .modal{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:400px;}
-        .modal h3{margin-bottom:15px;}
-        input{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
-        .btn-group{display:flex;gap:10px;margin-top:15px;}
-        .confirm{flex:1;padding:10px;background:#2d8cf0;color:#fff;border:none;border-radius:6px;}
-        .cancel{flex:1;padding:10px;background:#ccc;border:none;border-radius:6px;}
-        .admin-page{display:none;max-width:800px;margin:0 auto;}
-        .admin-item{padding:10px;background:#fff;margin:8px 0;border-radius:6px;display:flex;justify-content:space-between;align-items:center;}
-        .del-btn{padding:5px 10px;background:#f56c6c;color:#fff;border-radius:4px;border:none;cursor:pointer;}
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="header">
-        <h1>DW 预约系统</h1>
-        <button class="admin-btn" onclick="openAdminLogin()">管理员入口</button>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载预约数据...</div>
     </div>
 
-    <div class="calendar-wrap" id="calendar"></div>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
-    <div class="mask" id="bookMask">
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="header-left">
+            <div class="logo">DW</div>
+            <div>
+                <div class="header-title">DW 预约系统</div>
+                <div class="header-subtitle">在线预约 · 轻松便捷</div>
+            </div>
+        </div>
+        <button class="admin-trigger" onclick="openAdminLogin()" title="管理员入口">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>管理</span>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="month-nav">
+            <div>
+                <div class="month-label" id="monthLabel"></div>
+                <div class="month-range" id="monthRange"></div>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-dot today"></div>
+                    <span>今天</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot available"></div>
+                    <span>可预约</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot occupied"></div>
+                    <span>已预约</span>
+                </div>
+            </div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div class="modal-overlay" id="bookModal">
         <div class="modal">
-            <h3>预约 <span id="bookDate"></span> / <span id="bookTime"></span></h3>
-            <input type="text" id="userName" placeholder="请输入姓名">
-            <input type="text" id="userPhone" placeholder="请输入手机号">
-            <div class="btn-group">
-                <button class="confirm" onclick="submitBook()">提交预约</button>
-                <button class="cancel" onclick="closeMask()">取消</button>
+            <div class="modal-header">
+                <h3>预约确认</h3>
+                <p id="bookSlotInfo"></p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="bookName">姓名</label>
+                    <input class="form-input" type="text" id="bookName" placeholder="请输入您的姓名" maxlength="20" autocomplete="name">
+                    <div class="form-error" id="nameError">请输入姓名</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="bookPhone">手机号码</label>
+                    <input class="form-input" type="tel" id="bookPhone" placeholder="请输入手机号码" maxlength="11" autocomplete="tel">
+                    <div class="form-error" id="phoneError">请输入有效的手机号码</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBookModal()">取消</button>
+                <button class="btn btn-primary" id="submitBtn" onclick="submitBooking()">确认预约</button>
             </div>
         </div>
     </div>
 
-    <div class="mask" id="loginMask">
+    <!-- Admin Login Modal -->
+    <div class="modal-overlay" id="loginModal">
         <div class="modal">
-            <h3>管理员登录</h3>
-            <input type="password" id="adminPwd" placeholder="请输入管理员密码">
-            <div class="btn-group">
-                <button class="confirm" onclick="checkAdminPwd()">登录</button>
-                <button class="cancel" onclick="closeLoginMask()">取消</button>
+            <div class="modal-header">
+                <h3>管理员验证</h3>
+                <p>请输入管理员密码以进入后台</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="adminPwd">密码</label>
+                    <input class="form-input" type="password" id="adminPwd" placeholder="请输入管理员密码" autocomplete="current-password">
+                    <div class="form-error" id="pwdError">密码错误，请重试</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeLoginModal()">取消</button>
+                <button class="btn btn-primary" onclick="verifyAdmin()">验证</button>
             </div>
         </div>
     </div>
 
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-dialog">
+            <h4 id="confirmTitle">确认删除</h4>
+            <p id="confirmMessage">确定要删除这条预约记录吗？此操作不可撤销。</p>
+            <div class="confirm-buttons">
+                <button class="btn btn-secondary" onclick="closeConfirm()">取消</button>
+                <button class="btn btn-danger" id="confirmAction">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Page -->
     <div class="admin-page" id="adminPage">
-        <h2>后台预约管理</h2>
-        <div id="adminList"></div>
-        <button class="admin-btn" style="margin-top:20px" onclick="backHome()">返回首页</button>
+        <div class="admin-header">
+            <div class="admin-title">预约管理</div>
+            <button class="btn btn-secondary" onclick="backToHome()" style="flex:none;">← 返回首页</button>
+        </div>
+        <div class="admin-stats" id="adminStats"></div>
+        <div class="admin-list" id="adminList"></div>
     </div>
 
-    <script>
-        const APP_ID = "b1430caac34fe51ee2558f67abc431a2";
-        const REST_KEY = "a92758b5eb823f81870eaee6b0a20437";
-
-        const timeList = ['午餐','下午','晚餐','夜间'];
-        let currentSelectDate = '';
-        let currentSelectTime = '';
-        let allBookData = [];
-
-        // 先渲染日历，保证页面一定显示
-        function initCalendar(){
-            const wrap = document.getElementById('calendar');
-            wrap.innerHTML = '';
-            let now = new Date();
-            for(let i=0;i<30;i++){
-                let d = new Date();
-                d.setDate(now.getDate() + i);
-                let dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-                let weekStr = ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
-                
-                let dayHtml = `<div class="day-card">
-                    <div class="day-title">${dateStr} ${weekStr}</div>`;
-                timeList.forEach(time=>{
-                    let isOcc = allBookData.some(item=>item.date===dateStr && item.time===time);
-                    let cls = isOcc ? 'time-item occupied' : 'time-item';
-                    let click = isOcc ? '' : `openBook('${dateStr}','${time}')`;
-                    dayHtml += `<div class="${cls}" onclick="${click}">${time} ${isOcc?'已预约':'可预约'}</div>`;
-                });
-                dayHtml += `</div>`;
-                wrap.innerHTML += dayHtml;
-            }
-        }
-
-        // 加载预约
-        async function loadBookData(){
-            try {
-                const res = await fetch("https://api2.bmob.com/1/classes/DWBook",{
-                    headers: {
-                        "X-Bmob-Application-Id": APP_ID,
-                        "X-Bmob-REST-API-Key": REST_KEY
-                    }
-                });
-                const data = await res.json();
-                allBookData = (data.results || []).map(item=>({
-                    id: item.objectId,
-                    date: item.date,
-                    time: item.time,
-                    name: item.name,
-                    phone: item.phone
-                }));
-            } catch (e) {}
-            initCalendar();
-        }
-
-        function openBook(date,time){
-            currentSelectDate = date;
-            currentSelectTime = time;
-            document.getElementById('bookDate').innerText = date;
-            document.getElementById('bookTime').innerText = time;
-            document.getElementById('bookMask').style.display = 'flex';
-        }
-
-        function closeMask(){
-            document.getElementById('bookMask').style.display = 'none';
-        }
-
-        // 提交预约（修复跨域 + 修复接口地址）
-        async function submitBook(){
-            let name = document.getElementById('userName').value.trim();
-            let phone = document.getElementById('userPhone').value.trim();
-            if(!name || !phone) { alert('请填写姓名和手机号'); return; }
-
-            try {
-                const response = await fetch("https://api2.bmob.com/1/classes/DWBook", {
-                    method: "POST",
-                    headers: {
-                        "X-Bmob-Application-Id": APP_ID,
-                        "X-Bmob-REST-API-Key": REST_KEY,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        date: currentSelectDate,
-                        time: currentSelectTime,
-                        name: name,
-                        phone: phone
-                    })
-                });
-
-                if (response.ok) {
-                    alert("预约成功！");
-                    closeMask();
-                    loadBookData();
-                } else {
-                    alert("提交失败：请去 Bmob 后台创建表 DWBook");
-                }
-            } catch (err) {
-                alert("提交失败：网络或权限问题");
-            }
-        }
-
-        // 管理员
-        function openAdminLogin(){ document.getElementById('loginMask').style.display = 'flex'; }
-        function closeLoginMask(){ document.getElementById('loginMask').style.display = 'none'; }
-        function checkAdminPwd(){
-            if(document.getElementById('adminPwd').value === '123admin'){
-                closeLoginMask();
-                showAdminPage();
-            }else{
-                alert('密码错误');
-            }
-        }
-
-        function showAdminPage(){
-            document.getElementById('calendar').style.display = 'none';
-            document.getElementById('adminPage').style.display = 'block';
-            let html = '';
-            allBookData.forEach(item=>{
-                html += `<div class="admin-item">
-                    <div>${item.date} ${item.time} | ${item.name} | ${item.phone}</div>
-                    <button class="del-btn" onclick="delBook('${item.id}')">删除</button>
-                </div>`;
-            });
-            document.getElementById('adminList').innerHTML = html;
-        }
-
-        async function delBook(id){
-            if(!confirm('确定删除？')) return;
-            try {
-                await fetch(`https://api2.bmob.com/1/classes/DWBook/${id}`,{
-                    method: 'DELETE',
-                    headers: {
-                        "X-Bmob-Application-Id": APP_ID,
-                        "X-Bmob-REST-API-Key": REST_KEY
-                    }
-                });
-                loadBookData();
-                showAdminPage();
-                alert('删除成功');
-            } catch(e) {
-                alert('删除失败');
-            }
-        }
-
-        function backHome(){
-            document.getElementById('adminPage').style.display = 'none';
-            document.getElementById('calendar').style.display = 'grid';
-        }
-
-        window.onload = function(){
-            initCalendar();
-            loadBookData();
-        };
-    </script>
+    <!-- Scripts: config must load before app -->
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
