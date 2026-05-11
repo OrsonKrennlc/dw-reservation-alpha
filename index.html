@@ -11,11 +11,11 @@
         h1{color:#333;font-size:22px;}
         .admin-btn{padding:8px 16px;background:#2d8cf0;color:#fff;border:none;border-radius:6px;cursor:pointer;}
         .calendar-wrap{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;}
-        .day-card{background:#fff;border-radius:8px;padding:10px;box-shadow:0 2px 8px #00000015;}
+        .day-card{background:#fff;border-radius:8px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
         .day-title{font-weight:bold;margin-bottom:8px;color:#2d8cf0;font-size:14px;}
         .time-item{padding:6px;margin:4px 0;border-radius:4px;border:1px solid #eee;cursor:pointer;font-size:13px;}
         .time-item.occupied{background:#eee;color:#999;cursor:not-allowed;}
-        .mask{position:fixed;top:0;left:0;width:100%;height:100%;background:#00000050;display:none;align-items:center;justify-content:center;}
+        .mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;}
         .modal{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:400px;}
         .modal h3{margin-bottom:15px;}
         input{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
@@ -26,8 +26,6 @@
         .admin-item{padding:10px;background:#fff;margin:8px 0;border-radius:6px;display:flex;justify-content:space-between;align-items:center;}
         .del-btn{padding:5px 10px;background:#f56c6c;color:#fff;border-radius:4px;border:none;cursor:pointer;}
     </style>
-    <!-- 引入 Bmob SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/bmob-js-sdk@1.7.5/dist/bmob.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -35,10 +33,8 @@
         <button class="admin-btn" onclick="openAdminLogin()">管理员入口</button>
     </div>
 
-    <!-- 日历容器 -->
     <div class="calendar-wrap" id="calendar"></div>
 
-    <!-- 预约弹窗 -->
     <div class="mask" id="bookMask">
         <div class="modal">
             <h3>预约 <span id="bookDate"></span> / <span id="bookTime"></span></h3>
@@ -51,7 +47,6 @@
         </div>
     </div>
 
-    <!-- 管理员登录弹窗 -->
     <div class="mask" id="loginMask">
         <div class="modal">
             <h3>管理员登录</h3>
@@ -63,7 +58,6 @@
         </div>
     </div>
 
-    <!-- 后台管理页面 -->
     <div class="admin-page" id="adminPage">
         <h2>后台预约管理</h2>
         <div id="adminList"></div>
@@ -71,27 +65,22 @@
     </div>
 
     <script>
-        // ============ 在这里替换成你自己的 Bmob 凭证 ============
-        const APP_ID = 'b1430caac34fe51ee2558f67abc431a2'; // 你的 Application ID
-        const REST_API_KEY = 'a92758b5eb823f81870eaee6b0a20437'; // 你的 REST API Key
-        // ============================================================
+        // ======================================
+        // 你的 Bmob 信息（已经帮你填好！）
+        const APP_ID = "b1430caac34fe51ee2558f67abc431a2";
+        const REST_KEY = "a92758b5eb823f81870eaee6b0a20437";
+        // ======================================
 
-        // 初始化 Bmob
-        Bmob.initialize(APP_ID, REST_API_KEY);
-        const Book = Bmob.Object.extend("DWBook");
-
-        // 四个固定时段
         const timeList = ['午餐','下午','晚餐','夜间'];
         let currentSelectDate = '';
         let currentSelectTime = '';
         let allBookData = [];
 
-        // 初始化渲染一个月日历
+        // 先渲染日历（不依赖Bmob，保证页面绝不空白）
         function initCalendar(){
             const wrap = document.getElementById('calendar');
             wrap.innerHTML = '';
             let now = new Date();
-            // 生成未来30天
             for(let i=0;i<30;i++){
                 let d = new Date();
                 d.setDate(now.getDate() + i);
@@ -111,22 +100,30 @@
             }
         }
 
-        // 加载所有预约数据
+        // 加载预约（用最简单API，不报错）
         async function loadBookData(){
-            const query = new Bmob.Query(Book);
-            query.descending('createdAt');
-            let res = await query.find();
-            allBookData = res.map(item=>({
-                id:item.id,
-                date:item.get('date'),
-                time:item.get('time'),
-                name:item.get('name'),
-                phone:item.get('phone')
-            }));
+            try {
+                const res = await fetch(`https://api2.bmob.cn/1/classes/DWBook`,{
+                    headers: {
+                        "X-Bmob-Application-Id": APP_ID,
+                        "X-Bmob-REST-API-Key": REST_KEY
+                    }
+                });
+                const data = await res.json();
+                allBookData = (data.results || []).map(item=>({
+                    id: item.objectId,
+                    date: item.date,
+                    time: item.time,
+                    name: item.name,
+                    phone: item.phone
+                }));
+            } catch (e) {
+                console.log("加载预约失败，但日历正常显示");
+            }
             initCalendar();
         }
 
-        // 打开预约弹窗
+        // 打开预约
         function openBook(date,time){
             currentSelectDate = date;
             currentSelectTime = time;
@@ -134,43 +131,38 @@
             document.getElementById('bookTime').innerText = time;
             document.getElementById('bookMask').style.display = 'flex';
         }
-
         function closeMask(){
             document.getElementById('bookMask').style.display = 'none';
-            document.getElementById('userName').value = '';
-            document.getElementById('userPhone').value = '';
         }
 
         // 提交预约
         async function submitBook(){
             let name = document.getElementById('userName').value.trim();
             let phone = document.getElementById('userPhone').value.trim();
-            if(!name || !phone){
-                alert('请填写姓名和手机号');
-                return;
+            if(!name || !phone) { alert('请填写完整信息'); return; }
+            try {
+                await fetch(`https://api2.bmob.cn/1/classes/DWBook`,{
+                    method: 'POST',
+                    headers: {
+                        "X-Bmob-Application-Id": APP_ID,
+                        "X-Bmob-REST-API-Key": REST_KEY,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ date:currentSelectDate, time:currentSelectTime, name, phone })
+                });
+                alert('预约成功！');
+                closeMask();
+                loadBookData();
+            } catch(e){
+                alert('提交失败，请重试');
             }
-            // 保存到云端
-            let b = new Book();
-            b.set('date',currentSelectDate);
-            b.set('time',currentSelectTime);
-            b.set('name',name);
-            b.set('phone',phone);
-            await b.save();
-            alert('预约成功！');
-            closeMask();
-            loadBookData();
         }
 
-        // 管理员登录
-        function openAdminLogin(){
-            document.getElementById('loginMask').style.display = 'flex';
-        }
-        function closeLoginMask(){
-            document.getElementById('loginMask').style.display = 'none';
-        }
+        // 管理员
+        function openAdminLogin(){ document.getElementById('loginMask').style.display = 'flex'; }
+        function closeLoginMask(){ document.getElementById('loginMask').style.display = 'none'; }
         function checkAdminPwd(){
-            let pwd = document.getElementById('adminPwd').value.trim();
-            if(pwd === '123admin'){
+            if(document.getElementById('adminPwd').value === '123admin'){
                 closeLoginMask();
                 showAdminPage();
             }else{
@@ -178,43 +170,45 @@
             }
         }
 
-        // 后台页面
         function showAdminPage(){
             document.getElementById('calendar').style.display = 'none';
             document.getElementById('adminPage').style.display = 'block';
-            let listHtml = '';
+            let html = '';
             allBookData.forEach(item=>{
-                listHtml += `
-                <div class="admin-item">
+                html += `<div class="admin-item">
                     <div>${item.date} ${item.time} | ${item.name} | ${item.phone}</div>
-                    <button class="del-btn" onclick="delBook('${item.id}')">删除</button>
-                </div>
-                `;
+                    <button class="del-btn" onclick="del('${item.id}')">删除</button>
+                </div>`;
             });
-            document.getElementById('adminList').innerHTML = listHtml;
+            document.getElementById('adminList').innerHTML = html;
         }
 
-        // 删除预约
-        async function delBook(id){
-            if(!confirm('确定删除这条预约？')) return;
-            let query = new Bmob.Query(Book);
-            let obj = await query.get(id);
-            await obj.destroy();
-            loadBookData();
-            showAdminPage();
-            alert('已删除');
+        async function del(id){
+            if(!confirm('确定删除？')) return;
+            try {
+                await fetch(`https://api2.bmob.cn/1/classes/DWBook/${id}`,{
+                    method: 'DELETE',
+                    headers: {
+                        "X-Bmob-Application-Id": APP_ID,
+                        "X-Bmob-REST-API-Key": REST_KEY
+                    }
+                });
+                loadBookData();
+                showAdminPage();
+                alert('已删除');
+            }catch(e){ alert('删除失败'); }
         }
 
-        // 返回首页
         function backHome(){
             document.getElementById('adminPage').style.display = 'none';
             document.getElementById('calendar').style.display = 'grid';
         }
 
-        // 页面初始化
+        // 页面启动（先显示日历，再加载数据）
         window.onload = function(){
+            initCalendar(); // 立即显示，绝不空白
             loadBookData();
-        }
+        };
     </script>
 </body>
 </html>
