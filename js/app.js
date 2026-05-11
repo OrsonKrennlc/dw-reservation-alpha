@@ -23,6 +23,7 @@ let allBookings = [];
 let selectedDate = '';
 let selectedTime = '';
 let isAdmin = false;
+let expandedDate = null;
 
 // ========== Utility Functions ==========
 function formatDate(date) {
@@ -78,6 +79,13 @@ function closeConfirm() {
 }
 
 // ========== Calendar Rendering ==========
+function getDayStatus(dateStr) {
+    const booked = TIME_SLOTS.filter(s => getBookingForSlot(dateStr, s.key));
+    if (booked.length === 0) return 'all-free';
+    if (booked.length >= TIME_SLOTS.length) return 'full';
+    return 'partial';
+}
+
 function renderCalendar() {
     const grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
@@ -101,18 +109,48 @@ function renderCalendar() {
         const weekday = WEEKDAYS[date.getDay()];
         const dayNum = date.getDate();
         const isTodayDate = i === 0;
+        const status = getDayStatus(dateStr);
+        const isExpanded = expandedDate === dateStr;
 
-        const col = document.createElement('div');
-        col.className = 'day-column';
+        const card = document.createElement('div');
+        card.className = `day-card${isTodayDate ? ' today' : ''}${isExpanded ? ' expanded' : ''}`;
 
+        // Status bar
+        const statusBar = document.createElement('div');
+        statusBar.className = `day-card-status ${status}`;
+        card.appendChild(statusBar);
+
+        // Header (clickable to expand/collapse)
         const header = document.createElement('div');
-        header.className = `day-header${isTodayDate ? ' today' : ''}`;
+        header.className = 'day-card-header';
+
+        const bookedCount = TIME_SLOTS.filter(s => getBookingForSlot(dateStr, s.key)).length;
+
         header.innerHTML = `
-            <div class="day-weekday">周${weekday}</div>
-            <div class="day-number">${dayNum}</div>
-            <div class="day-month">${MONTHS[date.getMonth()]}</div>
+            <div class="day-card-left">
+                <span class="day-card-number">${dayNum}</span>
+                <span class="day-card-weekday">周${weekday}</span>
+            </div>
+            <span class="day-card-badge ${status === 'all-free' ? 'free' : status === 'full' ? 'full' : 'partial'}">
+                ${status === 'all-free' ? '可预约' : status === 'full' ? '已满' : `${bookedCount}/${TIME_SLOTS.length} 已约`}
+            </span>
         `;
-        col.appendChild(header);
+
+        if (!isExpanded) {
+            header.onclick = () => toggleDay(dateStr);
+        }
+
+        card.appendChild(header);
+
+        // Expanded detail panel
+        const detail = document.createElement('div');
+        detail.className = 'day-card-detail';
+
+        const displayDate = `${date.getMonth() + 1}月${dayNum}日 周${weekday}`;
+        detail.innerHTML = `<div class="day-card-detail-title">${displayDate} · 时段详情</div>`;
+
+        const slotsGrid = document.createElement('div');
+        slotsGrid.className = 'day-slots-grid';
 
         TIME_SLOTS.forEach(slot => {
             const booking = getBookingForSlot(dateStr, slot.key);
@@ -132,15 +170,30 @@ function renderCalendar() {
                     <div class="time-slot-icon">${slot.icon}</div>
                     <div class="time-slot-label">${slot.label}</div>
                     <div class="time-slot-status">可预约</div>
+                    <div class="time-slot-time">${slot.time}</div>
                 `;
                 el.onclick = () => openBookModal(dateStr, slot);
             }
 
-            col.appendChild(el);
+            slotsGrid.appendChild(el);
         });
 
-        grid.appendChild(col);
+        detail.appendChild(slotsGrid);
+
+        // Close button for expanded view
+        const closeBtn = document.createElement('div');
+        closeBtn.style.cssText = 'text-align:center; margin-top:12px;';
+        closeBtn.innerHTML = `<button class="btn btn-secondary" style="flex:none; padding:6px 16px; font-size:12px;" onclick="toggleDay(null)">收起</button>`;
+        detail.appendChild(closeBtn);
+
+        card.appendChild(detail);
+        grid.appendChild(card);
     }
+}
+
+function toggleDay(dateStr) {
+    expandedDate = (expandedDate === dateStr) ? null : dateStr;
+    renderCalendar();
 }
 
 // ========== Booking Modal ==========
